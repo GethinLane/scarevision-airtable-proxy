@@ -1,20 +1,32 @@
 // api/case.js
-// Vercel serverless function: proxy to Airtable, no keys in frontend
-
-const allowedOrigins = [
-  "https://www.scarevision.co.uk",
-  "https://scarevision.co.uk"
-];
+// Simple Airtable proxy for Vercel – with CORS for Squarespace
 
 export default async function handler(req, res) {
   const origin = req.headers.origin || "";
 
-  // Only allow requests from your Squarespace domain
-  if (!allowedOrigins.includes(origin)) {
-    return res.status(403).json({ error: "Forbidden origin" });
+  // --- CORS headers: allow your Squarespace site ---
+  const allowedOrigins = [
+    "https://www.scarevision.co.uk",
+    "https://scarevision.co.uk"
+  ];
+
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  // Let browsers cache CORS per-origin
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // Handle preflight
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
   }
 
+  // --- Main logic: proxy to Airtable ---
+
   const table = req.query.table;
+
   if (!table) {
     return res.status(400).json({ error: "Missing 'table' query parameter" });
   }
@@ -23,6 +35,7 @@ export default async function handler(req, res) {
   const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 
   if (!AIRTABLE_API_KEY || !AIRTABLE_BASE_ID) {
+    console.error("Missing Airtable env vars");
     return res.status(500).json({ error: "Server not configured correctly" });
   }
 
@@ -47,7 +60,7 @@ export default async function handler(req, res) {
 
     const data = await airtableResponse.json();
 
-    // Return only the fields you actually need
+    // Return only fields you need
     const safeRecords = (data.records || []).map((record) => ({
       id: record.id,
       fields: {
