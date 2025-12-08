@@ -1,26 +1,39 @@
 // api/case.js
-// Airtable proxy for Vercel – with CORS, returns full fields
+// Airtable proxy for Vercel – CORS + 1-hour edge caching + full fields
 
 export default async function handler(req, res) {
   const origin = req.headers.origin || "";
 
-  // --- CORS headers: allow your Squarespace site ---
+  // --- CORS: allow your Squarespace site + preview domain ---
   const allowedOrigins = [
     "https://www.scarevision.co.uk",
-    "https://scarevision.co.uk"
+    "https://scarevision.co.uk",
+    "https://bluebird-tarantula-djcw.squarespace.com"
   ];
 
-  if (allowedOrigins.includes(origin)) {
+  if (
+    allowedOrigins.includes(origin) ||
+    (origin && origin.endsWith(".squarespace.com"))
+  ) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
+
   res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Handle preflight
+  // Handle preflight OPTIONS requests
   if (req.method === "OPTIONS") {
     return res.status(204).end();
   }
+
+  // --- Cache control ---
+  // Cache at the Vercel edge for 1 hour (3600s),
+  // and allow serving stale content for another 2 hours while it revalidates.
+  res.setHeader(
+    "Cache-Control",
+    "public, s-maxage=5, stale-while-revalidate=5"
+  );
 
   // --- Main logic: proxy to Airtable ---
 
@@ -58,7 +71,7 @@ export default async function handler(req, res) {
 
     const data = await airtableResponse.json();
 
-    // ✅ Keep same shape as Airtable: records with full fields
+    // Keep full fields so your existing frontend logic works unchanged
     const records = (data.records || []).map((record) => ({
       id: record.id,
       fields: record.fields
