@@ -48,8 +48,6 @@ export default async function handler(req, res) {
     "Link-nt",
     "Difficulty",
     "Case ID",
-    "Case Number",
-    "Case",
   ];
 
   const pageSize = 100;
