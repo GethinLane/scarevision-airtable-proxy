@@ -464,6 +464,6 @@
 /* Horizontal rule from markdown --- */
 #assessmentManagement hr{
   border: 0;
-  border-top: 1px solid rgba(214, 221, 233, 0.5); /* #d6dde9 @ 50% */
+  border-top: 1px solid rgba(126, 137, 157, 0.5); /* #7e899d @ 50% */
   margin: 1rem 0;
 }
