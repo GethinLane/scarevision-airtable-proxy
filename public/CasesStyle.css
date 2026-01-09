@@ -445,3 +445,25 @@
   margin-top: 1.2rem;
   margin-bottom: 0.4rem;
 }
+/* Headings colour */
+#assessmentManagement h2,
+#assessmentManagement h3{
+  color: #253551;
+}
+
+/* Bold text (non-headings) colour */
+#assessmentManagement strong{
+  color: #59739f;
+}
+
+/* If your markdown sometimes produces <b> instead of <strong> */
+#assessmentManagement b{
+  color: #59739f;
+}
+
+/* Horizontal rule from markdown --- */
+#assessmentManagement hr{
+  border: 0;
+  border-top: 1px solid rgba(37, 53, 81, 0.5); /* #253551 @ 50% */
+  margin: 1rem 0;
+}
