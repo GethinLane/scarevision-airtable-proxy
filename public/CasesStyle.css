@@ -424,7 +424,7 @@
 
 /* Assessment & Management */
 #assessmentManagement.assessment-box{
-  background-color: #f6f8fb;   /* or transparent; */
+  background-color: transparent;   /* or transparent; */
   color: #253551;
   padding: 15px;
   margin: 20px 0;
