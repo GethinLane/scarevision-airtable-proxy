@@ -1,3 +1,7 @@
+
+/* MUST be the first line of the CSS file */
+@charset "UTF-8";
+
 /* Hide page content when printing */
     @media print {
       body {
@@ -139,7 +143,7 @@
 }
 
 .criteria-item label:before {
-    content: "â—‹";
+    content: "\25CB"; /* ○ */
     position: absolute;
     left: 0px;
     top: 50%;
@@ -148,12 +152,12 @@
 }
 
 .criteria-item input[type="checkbox"]:checked + label.positive:before {
-    content: "âœ”";
+    content: "\2714"; /* ✔ */
     color: green;
 }
 
 .criteria-item input[type="checkbox"]:checked + label.negative:before {
-    content: "âœ˜";
+    content: "\2718"; /* ✘ */
     color: red;
 }
 
