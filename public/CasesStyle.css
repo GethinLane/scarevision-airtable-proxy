@@ -466,4 +466,6 @@
   border: 0;
   border-top: 1px solid rgba(126, 137, 157, 0.5); /* #7e899d @ 50% */
   margin: 1rem 0;
+      background: transparent !important;
+  height: 0 !important;
 }
