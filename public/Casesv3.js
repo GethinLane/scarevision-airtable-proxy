@@ -468,88 +468,139 @@ document.addEventListener('airtableDataFetched', () => {
 });
 
 // =========================
-// Assessment & Management (Markdown-enhanced)
+// Assessment & Management (per-section images)
 // =========================
-
 document.addEventListener('airtableDataFetched', () => {
   const records = getAirtableRecordsOrExit('Assessment / Management');
   if (!records) return;
 
-  const assessmentSegments = [];
-  const managementSegments = [];
+  const box = document.getElementById('assessmentManagement');
+  if (!box) return;
 
-  // Collect Assessment + Management text in order
+  // Helpers
+  const normalizeMd = (md) => String(md || "")
+    .replace(/\r\n/g, '\n')
+    .replace(/\t/g, '  ')
+    // Turn single newlines into blank lines ONLY when the next line isn't a heading/list
+    .replace(/([^\n])\n(?!\n)(?!\s*(?:[-*+]\s|\d+\.\s|#{1,6}\s))/g, '$1\n\n');
+
+  const mdToHtml = (md) => {
+    const cleaned = normalizeMd(md);
+    if (window.marked) return (marked.parse ? marked.parse(cleaned) : marked(cleaned));
+    return cleaned; // fallback: plain text-ish
+  };
+
+  const removeEmptyParasAfterLists = (rootEl) => {
+    rootEl.querySelectorAll('p').forEach(p => {
+      const text = p.textContent.replace(/\u00a0/g, '').trim();
+      const prev = p.previousElementSibling;
+      if (!text && prev && (prev.tagName === 'UL' || prev.tagName === 'OL')) p.remove();
+    });
+  };
+
+  // Collect Assessment (all together, as before)
+  const assessmentSegments = [];
+  // Collect Management grouped by Order so each section can have its own images
+  const managementByOrder = new Map(); // order -> { texts: [], imgs: [] }
+
   records.forEach(record => {
     const order = record.fields['Order'];
+    if (order === undefined) return;
 
-    if (order !== undefined) {
-      if (record.fields['Assessment']) {
-        assessmentSegments.push({ order, text: record.fields['Assessment'] });
-      }
-      if (record.fields['Management']) {
-        managementSegments.push({ order, text: record.fields['Management'] });
+    const aText = record.fields['Assessment'];
+    if (aText) assessmentSegments.push({ order, text: aText });
+
+    const mText = record.fields['Management'];
+    const mImgs = record.fields['Management Image']; // attachments array (0..8)
+
+    if (mText || (Array.isArray(mImgs) && mImgs.length)) {
+      if (!managementByOrder.has(order)) managementByOrder.set(order, { texts: [], imgs: [] });
+
+      const entry = managementByOrder.get(order);
+
+      if (mText) entry.texts.push(mText);
+
+      if (Array.isArray(mImgs) && mImgs.length) {
+        // Keep only attachments that have a url
+        entry.imgs.push(...mImgs.filter(x => x && x.url));
       }
     }
   });
 
-  // Sort by order
   assessmentSegments.sort((a, b) => a.order - b.order);
-  managementSegments.sort((a, b) => a.order - b.order);
 
-  const box = document.getElementById('assessmentManagement');
-  if (!box) return;
+  const managementOrders = Array.from(managementByOrder.keys()).sort((a, b) => a - b);
 
-  if (assessmentSegments.length === 0 && managementSegments.length === 0) {
+  // If nothing at all, hide
+  if (!assessmentSegments.length && !managementOrders.length) {
     box.style.display = 'none';
     return;
   }
 
-  // Combine Markdown content exactly as Airtable provides it
-  let assessmentMd = assessmentSegments.map(s => s.text).join('\n\n');
-  let managementMd = managementSegments.map(s => s.text).join('\n\n');
+  // Clear box and rebuild
+  box.innerHTML = '';
 
-  let combinedMd = '';
-  if (assessmentMd) combinedMd += assessmentMd;
-  if (assessmentMd && managementMd) combinedMd += '\n\n';
-  if (managementMd) combinedMd += managementMd;
+  // ---- Render Assessment (combined) ----
+  if (assessmentSegments.length) {
+    const assessmentMd = assessmentSegments.map(s => s.text).join('\n\n');
+    const assessmentHtml = mdToHtml(assessmentMd);
 
-// --- Normalise Airtable Markdown ---
-combinedMd = combinedMd
-  .replace(/\r\n/g, '\n')          // Windows → Unix
-  .replace(/\t/g, '  ')            // tabs → spaces
-  // Convert single newlines between normal text lines into Markdown paragraph breaks
-  .replace(/([^\n])\n(?!\n)([^\-\*\d#])/g, '$1\n\n$2');
+    const assessmentWrap = document.createElement('div');
+    assessmentWrap.classList.add('assessment-section');
+    assessmentWrap.innerHTML = assessmentHtml;
 
-// --- Convert Markdown → HTML ---
-let htmlContent = combinedMd;
-if (window.marked) {
-  htmlContent = (marked.parse ? marked.parse(combinedMd) : marked(combinedMd));
-}
+    box.appendChild(assessmentWrap);
+    removeEmptyParasAfterLists(assessmentWrap);
+  }
 
-box.innerHTML = htmlContent;
+  // ---- Render Management per Order + its images right after ----
+  managementOrders.forEach(order => {
+    const entry = managementByOrder.get(order);
+    if (!entry) return;
 
+    // If you want a bit of spacing between management sections:
+    const sectionWrap = document.createElement('div');
+    sectionWrap.classList.add('management-section');
+    sectionWrap.style.marginTop = '12px';
 
-  box.innerHTML = htmlContent;
+    // Render management text (could be multiple texts for same order)
+    if (entry.texts.length) {
+      const md = entry.texts.join('\n\n');
+      const html = mdToHtml(md);
 
-  // ================================
-  // Remove ONLY empty <p> immediately after bullet lists
-  // (so lists don't create big unwanted gaps)
-  // ================================
-  const paras = box.querySelectorAll('p');
-  paras.forEach(p => {
-    const text = p.textContent.replace(/\u00a0/g, '').trim();
-    const prev = p.previousElementSibling;
+      const textWrap = document.createElement('div');
+      textWrap.classList.add('management-text');
+      textWrap.innerHTML = html;
 
-    const isEmpty = text === '';
-    const afterList = prev && (prev.tagName === 'UL' || prev.tagName === 'OL');
-
-    if (isEmpty && afterList) {
-      p.remove();
+      sectionWrap.appendChild(textWrap);
+      removeEmptyParasAfterLists(textWrap);
     }
+
+    // Render images immediately after this management text
+    if (entry.imgs.length) {
+      const imgsWrap = document.createElement('div');
+      imgsWrap.classList.add('management-images');
+
+      entry.imgs.forEach(file => {
+        const img = document.createElement('img');
+        img.src = file.url;
+        img.alt = file.filename || 'Management image';
+        img.loading = 'lazy';
+        img.style.width = '100%';
+        img.style.maxWidth = '800px';
+        img.style.height = 'auto';
+        img.style.display = 'block';
+        img.style.margin = '10px auto';
+
+        imgsWrap.appendChild(img);
+      });
+
+      sectionWrap.appendChild(imgsWrap);
+    }
+
+    box.appendChild(sectionWrap);
   });
 });
-
-
 
 
 // =========================
