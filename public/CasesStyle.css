@@ -421,3 +421,27 @@
             color: #512528;
             font-size: 1.25em; /* Adjust the size as needed */
         }
+
+/* Assessment & Management */
+#assessmentManagement.assessment-box{
+  background-color: #f6f8fb;   /* or transparent; */
+  color: #253551;
+  padding: 15px;
+  margin: 20px 0;
+  border-radius: 8px;
+  line-height: 1.6;
+  font-size: 1rem;
+  white-space: normal; /* keep if you prefer; consider pre-wrap if needed */
+}
+
+/* Different bullet styles by nesting level */
+#assessmentManagement.assessment-box ul { list-style-type: disc; }
+#assessmentManagement.assessment-box ul ul { list-style-type: circle; }
+#assessmentManagement.assessment-box ul ul ul { list-style-type: square; }
+
+/* Spacing above headings inside Assessment & Management */
+#assessmentManagement.assessment-box h3,
+#assessmentManagement.assessment-box h4{
+  margin-top: 1.2rem;
+  margin-bottom: 0.4rem;
+}
