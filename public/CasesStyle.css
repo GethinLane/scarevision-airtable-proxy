@@ -1,0 +1,423 @@
+/* Hide page content when printing */
+    @media print {
+      body {
+        display: none !important;
+      }
+    }
+
+
+/* Candidate Instructions */
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .data-box, .notes-box-medical, .results-box {
+            background-color: #d6dde9;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        h4 {
+            margin: 0 0 10px 0;
+        }
+        .bold {
+            font-weight: bold;
+        }
+        ul {
+            list-style-type: disc;
+            padding-left: 20px;
+        }
+        .data-field {
+            color: #253551; /* Ensures the correct color for these fields */
+        }
+        .notes-box-medical {
+            background-color: #d6e9db;
+        }
+        .notes-box-medical h4 {
+            color: #25512B;
+        }
+        .underline {
+            text-decoration: underline;
+        }
+        .quote-box {
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        .quote-box-medical {
+            background-color: #E5F3E8;
+            border-left: 4px solid #25512B;
+          margin-bottom: 20px;
+          margin-left: 10px;
+        }
+        .results-box {
+            background-color: #E9D6D6;
+        }
+        .results-box h4 {
+            color: #512528;
+        }
+        .quote-box-results {
+            background-color: #F7EBEB;
+            border-left: 4px solid #512528;
+          margin-bottom: 20px;
+          margin-left: 10px;
+        }
+
+/* Patient Instructions */
+.data-box, .ice-box, .react-data-box, .history-data-box {
+            border-radius: 15px;
+            padding: 25px;
+        }
+        .data-box, .ice-box {
+            background-color: #d6dde9;
+        }
+        .react-data-box {
+            background-color: #E9D6D6;
+            margin-top: 20px; /* Add margin to create a gap between ICE and React sections */
+        }
+        .history-data-box {
+            background-color: transparent;
+        }
+        h4 {
+            margin: 0 0 10px 0;
+            color: #253551; /* Dark blue color for data fields */
+        }
+        .react-data-box h4 {
+            color: #512528; /* Ensure the title color for reaction box */
+        }
+        .data-field, .reaction-item {
+            color: #253551; /* Ensures the correct color for data fields */
+        }
+        .reaction-item {
+            color: #512528; /* Matching color for the text in reaction box */
+        }
+        .unique-quote-box {
+            background-color: #f0f4fa; /* Lighter background for the quote box */
+            border-left: 4px solid #253551; /* Dark blue border to match text */
+            padding: 15px;
+            margin: 10px 0;
+            font-style: italic;
+        }
+        .bullet-list {
+            list-style-type: disc;
+            padding-left: 20px;
+        }
+        .paragraph {
+            margin-bottom: 10px;
+        }
+
+
+/* Marking */
+.criteria-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex-grow: 1;
+}
+
+.criteria-item {
+    display: flex;
+    align-items: center;
+    margin: 10px 0;
+    line-height: 1.5;
+    position: relative;
+}
+
+.criteria-item input[type="checkbox"] {
+    display: none;
+}
+
+.criteria-item label {
+    cursor: pointer;
+    padding: 5px 10px 5px 30px;
+    flex: 1;
+    position: relative;
+    display: block;
+    width: 100%; /* Ensure label spans the full width */
+    box-sizing: border-box; /* Include padding in width calculation */
+}
+
+.criteria-item label:before {
+    content: "â—‹";
+    position: absolute;
+    left: 0px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 20px;
+}
+
+.criteria-item input[type="checkbox"]:checked + label.positive:before {
+    content: "âœ”";
+    color: green;
+}
+
+.criteria-item input[type="checkbox"]:checked + label.negative:before {
+    content: "âœ˜";
+    color: red;
+}
+
+.criteria-item input[type="checkbox"]:checked + label.positive {
+    font-weight: bold;
+    color: #25512B;
+}
+
+.criteria-item input[type="checkbox"]:checked + label.negative {
+    font-weight: bold;
+    color: #512528;
+}
+
+.score-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.score-container h3 {
+    margin: 0 10px 0 0;
+}
+
+.positive-section,
+.negative-section {
+    padding: 20px;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex: 1;
+}
+
+.positive-section {
+    background-color: #D7EADC;
+}
+
+.negative-section {
+    background-color: #E9D6D6;
+}
+
+.section-title {
+    margin: 0;
+    padding: 10px;
+    border-radius: 15px;
+    color: #253551;
+    margin-bottom: 20px;
+}
+
+.criteria-sections {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 767px) {
+    .criteria-sections {
+        flex-direction: column;
+    }
+}
+
+.clear-pass {
+    color: #25512B;
+}
+
+.borderline-pass {
+    color: #D7EADC;
+}
+
+.borderline-fail {
+    color: #E9D6D6;
+}
+
+.clear-fail {
+    color: #512528;
+}
+
+.start-marking {
+    color: #d6dde9;
+}
+
+/* Key Issues*/
+
+.key-issues-box {
+            background-color: #d6e9db;
+            border-radius: 15px;
+            padding: 25px;
+        }
+        .key-issues-box h4 {
+            margin: 0 0 10px 0;
+            color: #25512B; /* Dark green color */
+        }
+        .bold-dark-green {
+            font-weight: bold;
+            color: #25512B; /* Dark green color */
+        }
+        .key-issues-quote-box {
+            background-color: transparent;
+            border-left: 0px solid #25512B;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+/* Explanation */
+
+.data-box {
+            background-color: #d6dde9;
+            border-radius: 15px;
+            padding: 25px;
+        }
+        h4 {
+            margin: 0 0 10px 0;
+            color: #253551; /* Dark blue color */
+        }
+        /* Unique styling for this specific quote box */
+        .unique-quote-box {
+            background-color: transparent; /* Lighter background for the quote box */
+            border-left: 4px solid #253551; /* Dark blue border to match text */
+            padding: 15px;
+            margin: 10px 0;
+            font-style: italic;
+        }
+        .data-field {
+            color: #253551; /* Ensures the correct color for these fields */
+        }
+
+/* New CSS for applicationContent */
+.application-box {
+    background-color: #d6dde9;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px; /* Add space between boxes */
+}
+.application-box h4 {
+    margin: 0 0 10px 0;
+    color: #512528; /* Ensure the title color is specifically set */
+}
+.application-item {
+    margin-bottom: 10px;
+    color: #512528; /* Matching color for the text */
+}/* New CSS for applicationContent */
+.application-box {
+    background-color: #d6dde9;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px; /* Add space between boxes */
+}
+.application-box h4 {
+    margin: 0 0 10px 0;
+    color: #512528; /* Ensure the title color is specifically set */
+}
+.application-item {
+    margin-bottom: 10px;
+    color: #512528; /* Matching color for the text */
+}/* New CSS for applicationContent */
+.application-box {
+    background-color: #d6dde9;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px; /* Add space between boxes */
+}
+.application-box h4 {
+    margin: 0 0 10px 0;
+    color: #512528; /* Ensure the title color is specifically set */
+}
+.application-item {
+    margin-bottom: 10px;
+    color: #512528; /* Matching color for the text */
+}/* New CSS for applicationContent */
+.application-box {
+    background-color: #d6dde9;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px; /* Add space between boxes */
+}
+.application-box h4 {
+    margin: 0 0 10px 0;
+    color: #512528; /* Ensure the title color is specifically set */
+}
+.application-item {
+    margin-bottom: 10px;
+    color: #512528; /* Matching color for the text */
+}/* New CSS for applicationContent */
+.application-box {
+    background-color: #d6dde9;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px; /* Add space between boxes */
+}
+.application-box h4 {
+    margin: 0 0 10px 0;
+    color: #512528; /* Ensure the title color is specifically set */
+}
+.application-item {
+    margin-bottom: 10px;
+    color: #512528; /* Matching color for the text */
+}/* New CSS for applicationContent */
+.application-box {
+    background-color: #d6dde9;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px; /* Add space between boxes */
+}
+.application-box h4 {
+    margin: 0 0 10px 0;
+    color: #512528; /* Ensure the title color is specifically set */
+}
+.application-item {
+    margin-bottom: 10px;
+    color: #512528; /* Matching color for the text */
+}
+
+/* New CSS for applicationContent */
+.application-box {
+    background-color: #d6dde9;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px; /* Add space between boxes */
+}
+.application-box h4 {
+    margin: 0 0 10px 0;
+    color: #253551; /* Ensure the title color is specifically set */
+}
+.application-item {
+    margin-bottom: 10px;
+    color: #253551; /* Matching color for the text */
+}
+
+/* References */
+/* Styles for Further Reading */
+        .reading-data-box {
+            background-color: #E9D6D6;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px; /* Add space between boxes */
+        }
+        .reading-data-box h4 {
+            margin: 0 0 10px 0;
+            color: #512528; /* Ensure the title color is specifically set */
+        }
+        .reference-item {
+            margin-bottom: 10px;
+            color: #512528; /* Matching color for the text */
+        }
+        .reference-item a {
+            text-decoration: underline; /* Underline links */
+            color: #512528; /* Matching color for the links */
+        }
+        .reference-item a:hover {
+            text-decoration: none; /* Hover effect */
+        }
+        .updated-box {
+            background-color: #E9D6D6;
+            border-radius: 15px;
+            padding: 25px;
+            display: flex;
+            align-items: center;
+        }
+        .updated-box h4 {
+            margin: 0;
+            color: #512528; /* Ensure the title color is specifically set */
+            margin-right: 10px; /* Add some space between title and date */
+        }
+        .last-updated-text {
+            color: #512528;
+            font-size: 1.25em; /* Adjust the size as needed */
+        }
