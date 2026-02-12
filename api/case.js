@@ -8,7 +8,10 @@ export default async function handler(req, res) {
   const allowedOrigins = [
     "https://www.scarevision.co.uk",
     "https://scarevision.co.uk",
-    "https://bluebird-tarantula-djcw.squarespace.com"
+    "https://bluebird-tarantula-djcw.squarespace.com",
+    "https://www.scarevision.ai",
+    "https://scarevision.ai",
+    "https://viola-jaguar-b3bj.squarespace.com"
   ];
 
   if (
