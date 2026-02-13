@@ -1,17 +1,17 @@
 // api/case.js
-// Airtable proxy for Vercel – CORS + 1-hour edge caching + full fields
+// Airtable proxy for Vercel – CORS + caching + full fields
+// ✅ Non-breaking addition: also returns CaseProfiles PatientImage when table is "Case N"
 
 export default async function handler(req, res) {
   const origin = req.headers.origin || "";
 
-  // --- CORS: allow your Squarespace site + preview domain ---
   const allowedOrigins = [
     "https://www.scarevision.co.uk",
     "https://scarevision.co.uk",
     "https://bluebird-tarantula-djcw.squarespace.com",
     "https://www.scarevision.ai",
     "https://scarevision.ai",
-    "https://viola-jaguar-b3bj.squarespace.com"
+    "https://viola-jaguar-b3bj.squarespace.com",
   ];
 
   if (
@@ -25,20 +25,11 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Handle preflight OPTIONS requests
-  if (req.method === "OPTIONS") {
-    return res.status(204).end();
-  }
+  if (req.method === "OPTIONS") return res.status(204).end();
 
-  // --- Cache control ---
-  // Cache at the Vercel edge for 1 hour (3600s),
-  // and allow serving stale content for another 2 hours while it revalidates.
-  res.setHeader(
-    "Cache-Control",
-    "public, s-maxage=5, stale-while-revalidate=5"
-  );
-
-  // --- Main logic: proxy to Airtable ---
+  // NOTE: your comment says 1 hour but values are 5 seconds right now.
+  // Keeping as-is to avoid changing caching behavior unexpectedly.
+  res.setHeader("Cache-Control", "public, s-maxage=5, stale-while-revalidate=5");
 
   const table = req.query.table;
   if (!table) {
@@ -57,11 +48,61 @@ export default async function handler(req, res) {
     table
   )}`;
 
+  // Helper: pick best attachment URL
+  function pickAttachmentUrl(att) {
+    if (!att) return null;
+    if (Array.isArray(att) && att.length) {
+      const a = att[0];
+      return a?.thumbnails?.large?.url || a?.thumbnails?.full?.url || a?.url || null;
+    }
+    if (typeof att === "object") {
+      return att?.thumbnails?.large?.url || att?.thumbnails?.full?.url || att?.url || null;
+    }
+    return null;
+  }
+
+  // Helper: only attempt profile lookup for tables like "Case 123"
+  function parseCaseNumberFromTableName(name) {
+    const m = String(name || "").trim().match(/^case\s+(\d+)$/i);
+    return m ? Number(m[1]) : null;
+  }
+
+  async function fetchCaseProfile(caseNumber) {
+    // Adjust this if your CaseProfiles key field is named differently:
+    const CASEPROFILES_KEY_FIELD = "CaseId"; // <- change to "CaseID" etc if needed
+
+    const filterByFormula = `{${CASEPROFILES_KEY_FIELD}}=${caseNumber}`;
+    const url =
+      `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent("CaseProfiles")}` +
+      `?filterByFormula=${encodeURIComponent(filterByFormula)}` +
+      `&maxRecords=1`;
+
+    const r = await fetch(url, {
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
+    });
+
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      return { ok: false, error: `CaseProfiles fetch failed (${r.status})`, raw: t.slice(0, 300) };
+    }
+
+    const j = await r.json();
+    const rec = j?.records?.[0] || null;
+    const fields = rec?.fields || {};
+    const patientImageUrl = pickAttachmentUrl(fields.PatientImage);
+
+    return {
+      ok: true,
+      found: !!rec,
+      recordId: rec?.id || null,
+      patientImageUrl: patientImageUrl || null,
+    };
+  }
+
   try {
+    // 1) Fetch Case table records (existing behavior)
     const airtableResponse = await fetch(airtableUrl, {
-      headers: {
-        Authorization: `Bearer ${AIRTABLE_API_KEY}`
-      }
+      headers: { Authorization: `Bearer ${AIRTABLE_API_KEY}` },
     });
 
     if (!airtableResponse.ok) {
@@ -73,14 +114,22 @@ export default async function handler(req, res) {
     }
 
     const data = await airtableResponse.json();
-
-    // Keep full fields so your existing frontend logic works unchanged
     const records = (data.records || []).map((record) => ({
       id: record.id,
-      fields: record.fields
+      fields: record.fields,
     }));
 
-    return res.status(200).json({ records });
+    // 2) Non-breaking add-on: also fetch CaseProfiles PatientImage
+    let profile = { ok: true, found: false, recordId: null, patientImageUrl: null };
+
+    const caseNumber = parseCaseNumberFromTableName(table);
+    if (caseNumber) {
+      // Only try if table is "Case N"
+      profile = await fetchCaseProfile(caseNumber);
+    }
+
+    // ✅ Keep existing return shape; add `profile` as an extra key
+    return res.status(200).json({ records, profile });
   } catch (err) {
     console.error("Proxy error:", err);
     return res.status(500).json({ error: "Proxy error" });
