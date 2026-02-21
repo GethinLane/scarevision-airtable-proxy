@@ -52,6 +52,7 @@ export default async function handler(req, res) {
     "Link-nt",
     "Difficulty",
     "Case ID",
+    "AI Link",
   ];
 
   const pageSize = 100;
