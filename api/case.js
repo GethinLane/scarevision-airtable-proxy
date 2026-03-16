@@ -12,6 +12,8 @@ export default async function handler(req, res) {
     "https://www.scarevision.ai",
     "https://scarevision.ai",
     "https://viola-jaguar-b3bj.squarespace.com",
+      "https://www.scarevisionai.co.uk",
+  "https://scarevisionai.co.uk",
   ];
 
   if (
