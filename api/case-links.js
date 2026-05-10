@@ -48,7 +48,7 @@ export default async function handler(req, res) {
   const url =
     `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE_ID}` +
     `?maxRecords=1&filterByFormula=${formula}` +
-    `&fields[]=Link&fields[]=Video%20Link&fields[]=Case%20ID`;
+    `&fields[]=Link&fields[]=Video%20Link&fields[]=Case%20ID&fields[]=AI%20Link`;
 
   try {
     const r = await fetch(url, {
@@ -77,6 +77,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       writtenUrl: normalize(fields["Link"]),
       videoUrl: normalize(fields["Video Link"]),
+      aiUrl: normalize(fields["AI Link"]),      
     });
   } catch (err) {
     return res.status(500).json({ error: "Proxy error", detail: String(err?.message || err) });
