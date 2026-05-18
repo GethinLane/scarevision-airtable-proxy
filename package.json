@@ -1,0 +1,12 @@
+{
+  "name": "scarevision-airtable-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "@vercel/blob": "^1.0.0"
+  }
+}
