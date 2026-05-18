@@ -345,15 +345,9 @@ async function fetchExistingShas(token) {
 async function commitFilesAsTree(token, files, message) {
   const repoPath = `/repos/${TARGET_OWNER}/${TARGET_REPO}`;
 
-  // 1. Latest ref on target branch
-  const ref = await ghFetch(token, `${repoPath}/git/refs/heads/${TARGET_BRANCH}`);
-  const parentSha = ref.object.sha;
-
-  // 2. Tree of the parent commit (so we can extend it rather than replace)
-  const parentCommit = await ghFetch(token, `${repoPath}/git/commits/${parentSha}`);
-  const parentTreeSha = parentCommit.tree.sha;
-
-  // 3. Create a blob for each changed file (parallel)
+  // Blobs are content-addressed and immutable — create them once, before
+  // the ref-update loop. If we have to retry the commit because main moved
+  // under us, the blobs are still valid and we just rebuild the tree.
   const blobs = await Promise.all(files.map(async (f) => {
     const blob = await ghFetch(token, `${repoPath}/git/blobs`, {
       method: 'POST',
@@ -366,40 +360,63 @@ async function commitFilesAsTree(token, files, message) {
     return { path: f.path, sha: blob.sha };
   }));
 
-  // 4. New tree based on parent tree, with our blobs layered on top
-  const newTree = await ghFetch(token, `${repoPath}/git/trees`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      base_tree: parentTreeSha,
-      tree: blobs.map((b) => ({
-        path: b.path,
-        mode: '100644',
-        type: 'blob',
-        sha: b.sha,
-      })),
-    }),
-  });
+  // Tree → commit → update-ref races with anything else committing to
+  // main during the sync (a PR merge, a concurrent single-case sync from
+  // an Airtable Automation, or the 6-hourly cron overlapping a manual
+  // run). On a non-fast-forward 422, refetch the ref and try again with
+  // the new parent — blobs are immutable so they stay valid.
+  const maxAttempts = 5;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const ref = await ghFetch(token, `${repoPath}/git/refs/heads/${TARGET_BRANCH}`);
+      const parentSha = ref.object.sha;
 
-  // 5. New commit pointing at the new tree
-  const newCommit = await ghFetch(token, `${repoPath}/git/commits`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      message,
-      tree: newTree.sha,
-      parents: [parentSha],
-    }),
-  });
+      const parentCommit = await ghFetch(token, `${repoPath}/git/commits/${parentSha}`);
+      const parentTreeSha = parentCommit.tree.sha;
 
-  // 6. Move the branch ref forward
-  await ghFetch(token, `${repoPath}/git/refs/heads/${TARGET_BRANCH}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sha: newCommit.sha }),
-  });
+      const newTree = await ghFetch(token, `${repoPath}/git/trees`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          base_tree: parentTreeSha,
+          tree: blobs.map((b) => ({
+            path: b.path,
+            mode: '100644',
+            type: 'blob',
+            sha: b.sha,
+          })),
+        }),
+      });
 
-  return newCommit.sha;
+      const newCommit = await ghFetch(token, `${repoPath}/git/commits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message,
+          tree: newTree.sha,
+          parents: [parentSha],
+        }),
+      });
+
+      await ghFetch(token, `${repoPath}/git/refs/heads/${TARGET_BRANCH}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sha: newCommit.sha }),
+      });
+
+      return newCommit.sha;
+    } catch (err) {
+      const isNotFastForward =
+        err.status === 422 && /not a fast forward/i.test(String(err.message || ''));
+      if (isNotFastForward && attempt < maxAttempts) {
+        await sleep(300 * attempt);
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw new Error('commitFilesAsTree: exhausted retries after non-fast-forward conflicts');
 }
 
 // SHA-1 git blob hash, so we can compare new content against the SHAs
