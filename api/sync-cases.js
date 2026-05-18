@@ -21,6 +21,7 @@
 // idempotency and produce a noisy commit on every cron run.
 
 import { createHash } from 'node:crypto';
+import { put, list } from '@vercel/blob';
 
 export const config = {
   maxDuration: 300,
@@ -38,6 +39,14 @@ const TARGET_OWNER = 'gethinlane';
 const TARGET_REPO = 'sca-revision';
 const TARGET_BRANCH = 'main';
 const TARGET_DIR = 'content/cases';
+
+// ---- Vercel Blob mirror for Airtable attachments ----
+// Airtable's attachment URLs are signed and expire after a few hours, so
+// embedding them in long-lived JSON would break image references between
+// syncs. We mirror every attachment into the existing case-images-blob
+// store under this prefix, keyed by the stable Airtable attachment id,
+// and rewrite the URLs in the JSON to permanent public blob URLs.
+const BLOB_PREFIX = 'CaseContentImages';
 
 export default async function handler(req, res) {
   const startedAt = Date.now();
@@ -74,6 +83,11 @@ export default async function handler(req, res) {
   const airtableApiKey = process.env.AIRTABLE_API_KEY;
   const airtableBaseId = process.env.AIRTABLE_BASE_ID;
   const githubToken = process.env.GITHUB_SYNC_TOKEN;
+  // Optional: when set, attachments are mirrored into Vercel Blob and the
+  // URLs in the JSON output are rewritten to permanent blob URLs. When
+  // absent, attachments pass through as-is (with the short-lived Airtable
+  // signed URLs intact).
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
   if (!airtableApiKey || !airtableBaseId) {
     return json(res, 500, { error: 'Missing AIRTABLE_API_KEY or AIRTABLE_BASE_ID' });
   }
@@ -103,6 +117,9 @@ export default async function handler(req, res) {
     try {
       const records = await fetchCaseTable(id, airtableBaseId, airtableApiKey);
       const payload = buildCaseJson(id, records);
+      if (blobToken) {
+        await mirrorAttachmentsInPayload(id, payload.fields, blobToken);
+      }
       const content = JSON.stringify(payload, null, 2) + '\n';
       const path = `${TARGET_DIR}/${id}.json`;
       const newSha = gitBlobSha(content);
@@ -361,10 +378,8 @@ async function commitFilesAsTree(token, files, message) {
   }));
 
   // Tree → commit → update-ref races with anything else committing to
-  // main during the sync (a PR merge, a concurrent single-case sync from
-  // an Airtable Automation, or the 6-hourly cron overlapping a manual
-  // run). On a non-fast-forward 422, refetch the ref and try again with
-  // the new parent — blobs are immutable so they stay valid.
+  // main during the sync (e.g. a PR merge). On a non-fast-forward 422,
+  // refetch the ref and try again with the new parent.
   const maxAttempts = 5;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -427,4 +442,111 @@ function gitBlobSha(content) {
   sha.update(`blob ${buf.length}\0`);
   sha.update(buf);
   return sha.digest('hex');
+}
+
+// ============================================================
+//  Vercel Blob attachment mirror
+// ============================================================
+//
+// Walks the case payload, finds Airtable attachment arrays (which look
+// like [{ id, url, filename, type, … }] inside per-row slots), uploads
+// each attachment to Vercel Blob once (keyed by attachment id), and
+// rewrites the JSON so the URL is the permanent blob URL instead of the
+// short-lived Airtable signed URL. Thumbnails are dropped to keep the
+// payload lean; regenerate them client-side from the main URL if needed.
+
+async function mirrorAttachmentsInPayload(caseId, fields, blobToken) {
+  // One list call per case → we know which attachment ids are already
+  // mirrored without doing N existence checks.
+  const existing = await listBlobsForCase(caseId, blobToken);
+
+  for (const fieldName of Object.keys(fields)) {
+    const arr = fields[fieldName];
+    if (!Array.isArray(arr)) continue;
+    for (let i = 0; i < arr.length; i++) {
+      const slot = arr[i];
+      if (!isAttachmentArray(slot)) continue;
+      const mirrored = [];
+      for (const att of slot) {
+        mirrored.push(await mirrorOneAttachment(caseId, att, existing, blobToken));
+      }
+      arr[i] = mirrored;
+    }
+  }
+}
+
+async function listBlobsForCase(caseId, blobToken) {
+  const { blobs } = await list({
+    prefix: `${BLOB_PREFIX}/${caseId}/`,
+    token: blobToken,
+  });
+  const map = new Map();
+  for (const b of blobs) map.set(b.pathname, b.url);
+  return map;
+}
+
+function isAttachmentArray(v) {
+  return (
+    Array.isArray(v) &&
+    v.length > 0 &&
+    v[0] &&
+    typeof v[0] === 'object' &&
+    typeof v[0].id === 'string' &&
+    typeof v[0].url === 'string'
+  );
+}
+
+async function mirrorOneAttachment(caseId, att, existingMap, blobToken) {
+  const ext = pickExtension(att.filename, att.type);
+  const pathname = `${BLOB_PREFIX}/${caseId}/${att.id}${ext}`;
+
+  let blobUrl = existingMap.get(pathname);
+  if (!blobUrl) {
+    // Download from Airtable's signed URL, then upload to Blob with a
+    // stable pathname keyed by attachment id — so subsequent syncs see
+    // it in the list() result and skip the round-trip.
+    const resp = await fetch(att.url);
+    if (!resp.ok) {
+      throw new Error(
+        `Airtable attachment download failed (${resp.status}) for ${att.id}`
+      );
+    }
+    const buf = Buffer.from(await resp.arrayBuffer());
+    const result = await put(pathname, buf, {
+      access: 'public',
+      contentType: att.type || 'application/octet-stream',
+      token: blobToken,
+      addRandomSuffix: false,
+      allowOverwrite: false,
+    });
+    blobUrl = result.url;
+    existingMap.set(pathname, blobUrl);
+  }
+
+  // Slim attachment object with the permanent URL. Original Airtable
+  // thumbnails are dropped (they expire too); consumers that want
+  // thumbnails can resize from `url` client-side.
+  return {
+    id: att.id,
+    filename: att.filename,
+    type: att.type,
+    width: att.width,
+    height: att.height,
+    size: att.size,
+    url: blobUrl,
+  };
+}
+
+function pickExtension(filename, mimeType) {
+  if (typeof filename === 'string') {
+    const dot = filename.lastIndexOf('.');
+    if (dot >= 0 && dot < filename.length - 1) {
+      return filename.slice(dot).toLowerCase();
+    }
+  }
+  if (typeof mimeType === 'string') {
+    const sub = mimeType.split('/')[1];
+    if (sub) return `.${sub.split(';')[0].trim().toLowerCase()}`;
+  }
+  return '';
 }
